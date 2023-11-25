@@ -1,0 +1,23 @@
+{
+  "name": "websocketbench",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lemire/jswebsocket_bench.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lemire/jswebsocket_bench/issues"
+  },
+  "homepage": "https://github.com/lemire/jswebsocket_bench#readme",
+  "dependencies": {
+    "ws": "^8.14.2"
+  }
+}
