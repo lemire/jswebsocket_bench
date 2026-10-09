@@ -51,7 +51,7 @@ The results go to `results.csv` (set `OUT` to change it). Set `SERVER_CPU`,
 
 Intel Xeon Gold 6548N (Emerald Rapids), Linux, server pinned to core 8 and
 client to core 10. Node.js 24.21.0, 25.9.0 and 26.11.1; Bun 1.4.2; Deno 2.9.7;
-ws 8.18.3; uWebSockets.js 20.71.0. Thousands of round trips per second: the
+ws 8.22.0; uWebSockets.js 20.71.0. Thousands of round trips per second: the
 median of three full passes of `bench.sh` (50000 warm-up round trips, then five
 trials of 100000), with the range across passes in parentheses. Raw data is in
 `results/`. Regenerate the table with `./summarize.py results/*.csv`.
