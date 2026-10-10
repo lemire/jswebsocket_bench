@@ -70,6 +70,65 @@ trials of 100000), with the range across passes in parentheses. Raw data is in
 
 Cells with a Bun client vary more from pass to pass than the others.
 
+## C client (wsclient)
+
+The JavaScript clients are slow enough that they hide differences between
+servers: with a Node.js or Deno client, nearly every server lands at 19–22k
+round trips per second. `wsclient.c` is a minimal client in C (Linux) that
+takes the client out of the measurement as much as possible: prebuilt frames
+with a zero masking key, one `write()` per message, no event loop in
+ping-pong mode, and non-blocking sockets polled in a busy loop so that it
+never sleeps. It checks every message it receives and fails if the server
+echoes instead of relaying.
+
+- `wsclient pingpong`: one pair, strictly sequential round trips; reports the
+  rate and the per-round-trip latency (p50, p99). This is latency-bound: the
+  server is idle part of the time, waiting for the next message.
+- `wsclient load -n 64 -T 4`: 64 pairs, each with one message in flight, over
+  4 client threads. The server core is saturated (99% busy), so this measures
+  the server's cost per message. Adding client threads or pairs does not
+  raise the rate.
+
+`wsrelay.c` is a minimal single-threaded epoll relay in C, as a baseline. It
+only works with `wsclient` (it accepts a single fixed `Sec-WebSocket-Key`) and
+unmasks byte by byte, so it is a simple baseline, not an optimal server.
+
+The servers pair connections in arrival order and relay each message to the
+peer only, so many pairs can share one server.
+
+```
+NODES="/path/to/node24 /path/to/node25 /path/to/node26" BUN=/path/to/bun DENO=/path/to/deno ./bench_c.sh
+```
+
+writes `results_c.csv`. `bench_c.sh` builds `wsclient` and `wsrelay`, pins the
+server to core 8 (the client to core 10, or 10,12,14,16 in load mode), and
+restarts the server for each mode.
+
+### Results (October 2026)
+
+Same machine and versions as above. Thousands of round trips per second: the
+median of three full passes of `bench_c.sh` (each value is itself the median
+of five trials), with the range across passes in parentheses. Ping-pong uses
+16-byte messages; latencies are in microseconds. uWebSockets.js has no
+Node.js 25 build. Regenerate with `./summarize_c.py results/results_c_*.csv`.
+
+| server | ping-pong | p50 (µs) | p99 (µs) | load, 16 B | load, 4 KiB |
+|---|---|---|---|---|---|
+| C wsrelay | 54 (53–54) | 18.4 | 23.0 | 109 (109–109) | 72 (72–73) |
+| node-24.21.0 ws | 44 (44–44) | 22.1 | 33.9 | 68 (68–69) | 58 (57–58) |
+| node-24.21.0 uws | 49 (49–49) | 20.2 | 26.4 | 91 (91–91) | 77 (77–77) |
+| node-25.9.0 ws | 43 (43–43) | 22.3 | 34.0 | 67 (67–67) | 56 (56–57) |
+| node-26.11.1 ws | 45 (45–45) | 21.7 | 31.5 | 71 (71–72) | 60 (59–60) |
+| node-26.11.1 uws | 49 (49–49) | 20.4 | 24.8 | 93 (92–93) | 77 (77–77) |
+| bun-1.4.2 ws | 41 (41–41) | 22.5 | 36.9 | 85 (85–86) | 53 (53–53) |
+| bun-1.4.2 Bun.serve | 37 (37–39) | 26.8 | 46.4 | 99 (98–99) | 71 (71–71) |
+| deno-2.9.7 ws | 34 (32–34) | 29.6 | 45.9 | 64 (64–64) | 54 (54–54) |
+| deno-2.9.7 Deno.serve | 40 (39–40) | 25.0 | 32.0 | 76 (75–76) | 56 (55–56) |
+
+A blocking client (`wsclient -b`) is not used: its latency is bimodal (p50
+21 µs, p99 51 µs even with the C relay) because it mostly measures how fast
+the kernel wakes up the client.
+
 ## Note on the 2023 version
 
 The original `bunserver.js` had a bug: it sent each message back to its sender
